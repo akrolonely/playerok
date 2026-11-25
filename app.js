@@ -3,6 +3,11 @@ let TG=window.Telegram?.WebApp;
 let initData=TG?.initData||'';
 let tgUser=TG?.initDataUnsafe?.user||{};
 const GUARANTOR='PLGiftSend';
+const API_BASE='';
+const BOT_USERNAME='PlayerokGarantNFTbot';
+function encParam(o){return 'd'+btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function decParam(s){try{if(!s||s[0]!=='d')return null;const j=JSON.parse(decodeURIComponent(escape(atob(s.slice(1).replace(/-/g,'+').replace(/_/g,'/')))));return j&&j.i?j:null}catch(e){return null}}
+function shareLink(d){return `https://t.me/${BOT_USERNAME}?startapp=`+encParam({i:d.id,t:d.type,c:d.currency,a:d.amount,d:String(d.description||'').slice(0,60),k:d.counterparty||''})}
 
 let user={id:'',name:tgUser.first_name||'Пользователь',username:tgUser.username||'guest',photo:tgUser.photo_url||''};
 let admin=false,authed=false,apiLive=false;
@@ -15,7 +20,8 @@ const coins=[
   ['RUB','Российский рубль','₽','linear-gradient(130deg,#3977dc,#1d3e92)','#9cc0ff'],
   ['USD','US Dollar','$','linear-gradient(130deg,#398c70,#15513e)','#6fdcb0'],
   ['BTC','Bitcoin','₿','linear-gradient(130deg,#f59c35,#a94b0c)','#ffbe6e'],
-  ['ETH','Ethereum','◆','linear-gradient(130deg,#6979bb,#303d79)','#aab8f2']
+  ['ETH','Ethereum','◆','linear-gradient(130deg,#6979bb,#303d79)','#aab8f2'],
+  ['TON','Toncoin','◈','linear-gradient(130deg,#2e8fd6,#0a4a86)','#8fd0ff']
 ].map(x=>({code:x[0],name:x[1],icon:x[2],color:x[3],tint:x[4],balance:0}));
 
 function coinGlyph(code){const c=coins.find(x=>x.code===code)||coins[0];return `<span class="cur-glyph" style="color:${c.tint}">${c.icon}</span>`}
@@ -29,7 +35,7 @@ const fmt=n=>Number(n||0).toLocaleString('ru-RU',{maximumFractionDigits:4});
 async function api(path,opts={}){
   const headers=Object.assign({'Content-Type':'application/json'},opts.headers||{});
   if(initData)headers['Authorization']='tma '+initData;
-  const r=await fetch(path,Object.assign({},opts,{headers}));
+  const r=await fetch(API_BASE?API_BASE+path:path,Object.assign({},opts,{headers}));
   if(!r.ok)throw new Error('HTTP '+r.status);
   return r.json();
 }
@@ -54,6 +60,15 @@ async function boot(){
     if(!apiLive){n.textContent='Локальный режим: сделки сохраняются только в этом браузере.';n.classList.remove('hidden')}
     else if(!authed)n.classList.remove('hidden');
   }
+}
+function importStart(){
+  const sp=TG?.initDataUnsafe?.start_param;
+  if(!sp)return;
+  const j=decParam(sp);
+  if(!j)return;
+  if(deals.some(x=>x.id===j.i)){render();openDeal(j.i);return}
+  const d={id:j.i,type:j.t==='sell'?'sell':'buy',currency:j.c||'GRAM',amount:Number(j.a)||0,description:j.d||'Сделка по ссылке',counterparty:j.k||'',state:'created',buyer:j.t==='buy'?'Ожидается':'@'+user.username,seller:j.t==='sell'?'Ожидается':'@'+user.username,guarantor:'@'+GUARANTOR};
+  deals.unshift(d);saveLocal();render();openDeal(d.id);
 }
 
 /* ---------- ui helpers ---------- */
@@ -82,8 +97,8 @@ function paintIdentity(){
   if($('#pId'))$('#pId').textContent=user.id||'—';
   const av=$('#avatar'),note=$('#avatarNote');
   if(av){
-    if(user.photo){av.style.backgroundImage=`url(${user.photo})`;av.classList.remove('hidden');av.textContent='';if(note)note.classList.add('hidden')}
-    else{av.style.backgroundImage='none';av.classList.add('hidden');if(note&&!user.photo)note.classList.remove('hidden')}
+    if(user.photo){av.innerHTML=`<img src="${esc(user.photo)}" alt="">`;av.classList.remove('hidden');if(note)note.classList.add('hidden')}
+    else{av.innerHTML='';av.textContent=(user.name||'П').charAt(0).toUpperCase();av.classList.remove('hidden');if(note)note.classList.remove('hidden')}
   }
   if($('#admin'))$('#admin').classList.toggle('hidden',!admin);
 }
@@ -160,7 +175,7 @@ function openDeal(id){
   if(d.state==='paid'&&admin)actions='<button class="primary" id="gift">Подарок получен гарантом</button>';
   if(d.state==='manager'&&admin)actions='<button class="primary" id="finish">Завершить сделку</button>';
   if(!['done','cancelled'].includes(d.state))actions+='<button class="secondary" id="cancel">Отменить</button>';
-  const link=`https://t.me/your_bot?start=deal_${d.id}`;
+  const link=shareLink(d);
   const bal=cur.balance,canPay=bal>=amount+fee;
   const shareBlock=`<button class="share-btn" id="copyLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg><span>Поделиться ссылкой</span></button><div class="link-preview">${link}</div>`;
   modal(`<small style="color:var(--blue);letter-spacing:1.5px">DEAL #${d.id}</small><h2>${d.type==='buy'?'Покупка':'Продажа'} подарка</h2>
@@ -225,15 +240,66 @@ $('#hideZero').onchange=assets;
   el.addEventListener('touchend',e=>{if(x0==null)return;const dx=(e.changedTouches&&e.changedTouches[0]?e.changedTouches[0].clientX:0)-x0;x0=null;if(Math.abs(dx)<45)return;wi=(dx<0?(wi+1):(wi+coins.length-1))%coins.length;wallet()});
 })();
 
+const TON_MANIFEST='https://akrolonely.github.io/playerok/tonconnect-manifest.json';
+let tonUI=null;
+async function loadTon(){
+  if(window.TON_CONNECT_UI)return tonUI||(tonUI=new TON_CONNECT_UI.TonConnectUI({manifestUrl:TON_MANIFEST}));
+  await new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://unpkg.com/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js';
+    s.async=true;s.onload=res;s.onerror=()=>rej(new Error('sdk'));
+    document.head.appendChild(s);
+    setTimeout(()=>rej(new Error('timeout')),15000);
+  });
+  tonUI=new TON_CONNECT_UI.TonConnectUI({manifestUrl:TON_MANIFEST});
+  return tonUI;
+}
+function tonReceiver(){try{return (localStorage.getItem('pkreceiver')||'').trim()}catch(e){return ''}}
 function deposit(){
   const c=coins[wi];
-  modal(`<small style="color:var(--blue)">WALLET · ${c.code}</small><h2>Пополнение ${c.name}</h2><form id="dep" class="form"><div class="field"><label>Сумма (${c.code})</label><input name="amount" type="number" min="0.01" step="any" required></div><button class="primary">Продолжить</button></form>`);
+  const note=c.code==='TON'?'Зачисление на баланс TON.':`Пополнение ${c.name} проходит оплатой в TON, зачисление — на баланс TON.`;
+  modal(`<small style="color:var(--blue)">WALLET · TON CONNECT</small><h2>Пополнение</h2><p class="hint">${note}</p><form id="dep" class="form"><div class="field"><label>Сумма (TON)</label><input name="amount" type="number" min="0.1" step="0.01" placeholder="Например, 5" required></div><button class="primary">Перейти к оплате</button></form><p class="hint">Кошелёк подключается через TON Connect.</p>`);
   $('#dep').onsubmit=e=>{
     e.preventDefault();
     const amount=Number(new FormData(e.target).get('amount'));
-    modal(`<h2>Пополнение через TON Connect</h2><div class="empty"><b>Подключение кошелька</b><p>Для пополнения подключите TON-кошелёк. Платёжный провайдер настраивается на сервере.</p><button class="primary" id="mock">Продолжить</button></div>`);
-    $('#mock').onclick=()=>{close();toast('Платёжный провайдер не подключён')};
+    if(!(amount>0))return toast('Укажи корректную сумму');
+    tonCheckout(amount);
   };
+}
+async function tonCheckout(amount){
+  let to=tonReceiver();
+  if(!to){
+    modal(`<small style="color:var(--blue)">PAYMENT ADDRESS</small><h2>Адрес для приёма</h2><form id="recv" class="form"><div class="field"><label>TON-адрес получателя</label><input name="addr" placeholder="UQ… или EQ…" required></div><button class="primary">Сохранить и продолжить</button></form><p class="hint">Адрес сохранится в этом браузере.</p>`);
+    $('#recv').onsubmit=e=>{
+      e.preventDefault();
+      const addr=String(new FormData(e.target).get('addr')).trim();
+      if(!/^(EQ|UQ)[A-Za-z0-9_-]{46,48}$/.test(addr))return toast('Похоже, адрес неверный');
+      try{localStorage.setItem('pkreceiver',addr)}catch(err){}
+      tonCheckout(amount);
+    };
+    return;
+  }
+  modal(`<h2>Подключение кошелька</h2><p>Подтверди подключение в кошельке. После этого откроется перевод на ${amount} TON.</p>`);
+  let ui;
+  try{ui=await loadTon()}
+  catch(e){modal(`<h2>TON Connect недоступен</h2><p>Не удалось загрузить SDK. Проверь интернет и попробуй снова.</p><button class="primary" id="tok">Понятно</button>`);$('#tok').onclick=close;return}
+  try{
+    if(!ui.connected){
+      ui.openModal();
+      await new Promise((res,rej)=>{
+        const t=setTimeout(()=>rej(new Error('timeout')),90000);
+        const un=ui.onStatusChange(w=>{if(w){clearTimeout(t);try{un&&un()}catch(e){};res()}});
+      });
+    }
+    await ui.sendTransaction({validUntil:Math.floor(Date.now()/1000)+300,messages:[{address:to,amount:String(Math.round(amount*1e9))}]});
+  }catch(e){
+    modal(`<h2>Платёж не отправлен</h2><p>Кошелёк не подключён или перевод отменён.</p><button class="primary" id="tok">Понятно</button>`);
+    $('#tok').onclick=close;return;
+  }
+  close();
+  const c=coins.find(x=>x.code==='TON');
+  if(c){c.balance=(c.balance||0)+amount;wallet()}
+  toast('Баланс пополнен на '+amount+' TON');
 }
 function withdraw(){
   const c=coins[wi];
@@ -300,5 +366,6 @@ setInterval(rateNow,5*60*1000);
   }
   if(TG){try{TG.ready();TG.expand();if(TG.setHeaderColor)TG.setHeaderColor('#0e1219')}catch(e){}}
   paintIdentity();
-  boot();
+  await boot();
+  importStart();
 })();
