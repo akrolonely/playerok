@@ -7,7 +7,7 @@ const API_BASE='https://playerok-api.ruslandrobchenko2010.workers.dev';
 const BOT_USERNAME='PlayerokGarantNFTbot';
 function encParam(o){return 'd'+btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function decParam(s){try{if(!s||s[0]!=='d')return null;const j=JSON.parse(decodeURIComponent(escape(atob(s.slice(1).replace(/-/g,'+').replace(/_/g,'/')))));return j&&j.i?j:null}catch(e){return null}}
-function shareLink(d){return `https://t.me/${BOT_USERNAME}?startapp=`+encParam({i:d.id,t:d.type,c:d.currency,a:d.amount,d:String(d.description||'').slice(0,60),k:d.counterparty||'',u:d.owner_username||user.username||''})}
+function shareLink(d){return `https://t.me/${BOT_USERNAME}?startapp=`+encParam({i:d.id,t:d.type,c:d.currency,a:d.amount,d:String(d.description||'').slice(0,60),k:d.counterparty||'',u:d.owner_username||user.username||'',o:String(user.id||'')})}
 
 let user={id:'',name:tgUser.first_name||'Пользователь',username:tgUser.username||'guest',photo:tgUser.photo_url||''};
 let admin=false,authed=false,apiLive=false;
@@ -83,7 +83,7 @@ async function importStart(){
   const iAmBuyer=j.t==='buy'?creator===me:creator!==me;
   const buyer=iAmBuyer?(user.username||'покупатель'):creator;
   const seller=iAmBuyer?creator:(user.username||'продавец');
-  const d={id:j.i,type:j.t==='sell'?'sell':'buy',currency:j.c||'GRAM',amount:Number(j.a)||0,description:j.d||'Сделка по ссылке',counterparty:j.k||'',state:'participant',owner_username:creator,buyer,seller,guarantor:'@'+GUARANTOR};
+  const d={id:j.i,type:j.t==='sell'?'sell':'buy',currency:j.c||'GRAM',amount:Number(j.a)||0,description:j.d||'Сделка по ссылке',counterparty:j.k||'',state:'participant',owner_username:creator,buyer,seller,buyer_id:iAmBuyer?String(user.id||''):String(j.o||''),seller_id:iAmBuyer?String(j.o||''):String(user.id||''),guarantor:'@'+GUARANTOR};
   deals.unshift(d);saveLocal();render();openDeal(d.id);
 }
 
@@ -176,34 +176,37 @@ function safety(d){
   };
 }
 
-function statusHint(s){return ({created:'Ожидаем подключения второй стороны',participant:'Участник подключился, ожидаем оплату',claimed:'Проверяем полученный чек оплаты',paid:'Оплата подтверждена, подарок у гаранта',manager:'Гарант проверяет подарок',done:'Сделка успешно завершена',cancelled:'Сделка отменена'})[s]||''}
+function statusHint(s){return ({created:'Ожидаем подключения второй стороны',participant:'Участник подключился, ожидаем оплату',claimed:'Покупатель отметил оплату, ждём подтверждения гаранта',paid:'Оплата у гаранта, продавец передаёт подарок',manager:'Подарок у гаранта, ожидаем завершения',done:'Сделка успешно завершена',cancelled:'Сделка отменена'})[s]||''}
 
 function openDeal(id){
   const d=deals.find(x=>x.id===id);if(!d)return;
   const n=d.state==='done'?4:d.state==='manager'?3:['paid','claimed'].includes(d.state)?2:d.state==='participant'?1:0;
   const cur=coins.find(c=>c.code===d.currency)||coins[0];
   const feeRate=.01,amount=Number(d.amount)||0,fee=amount*feeRate;
-  const meU=String(user.username||'').toLowerCase(),buyerU=String(d.buyer||'').toLowerCase(),sellerU=String(d.seller||'').toLowerCase();
+  const myId=String(user.id||''),meU=String(user.username||'').toLowerCase();
+  const bId=String(d.buyer_id||''),sId=String(d.seller_id||'');
+  const buyerU=String(d.buyer||'').toLowerCase(),sellerU=String(d.seller||'').toLowerCase();
   let iAmBuyer;
-  if(buyerU&&buyerU===meU)iAmBuyer=true;
-  else if(sellerU&&sellerU===meU)iAmBuyer=false;
-  else if(buyerU&&sellerU)iAmBuyer=true;
+  if(myId&&bId&&bId===myId)iAmBuyer=true;
+  else if(myId&&sId&&sId===myId)iAmBuyer=false;
+  else if(meU&&buyerU&&buyerU===meU)iAmBuyer=true;
+  else if(meU&&sellerU&&sellerU===meU)iAmBuyer=false;
   else iAmBuyer=d.type==='buy';
   const otherU=iAmBuyer?(d.seller||d.counterparty):(d.buyer||d.counterparty);
   let actions='';
   if(admin){
-    if(d.state==='created'||d.state==='participant')actions='<button class="primary" id="verify">Подтвердить оплату</button>';
     if(d.state==='claimed')actions='<button class="primary" id="verify">Подтвердить оплату</button>';
-    if(d.state==='paid')actions='<button class="primary" id="gift">Подарок получен гарантом</button>';
-    if(d.state==='manager')actions='<button class="primary" id="finish">Завершить сделку</button>';
+    if(d.state==='manager')actions='<button class="primary" id="finish">Подарок получен · завершить</button>';
   }else if(iAmBuyer){
     if(['created','participant'].includes(d.state))actions='<div class="field"><label>Чек оплаты гаранту</label><input id="receiptFile" type="file" accept="image/*"></div><button class="primary" id="claim">Я оплатил</button>';
-    else if(d.state==='claimed')actions='<p class="hint">Оплата отправлена. Ждём подтверждения гаранта.</p>';
-    else if(['paid','manager'].includes(d.state))actions='<p class="hint">Гарант получил оплату. Ожидай передачу подарка.</p>';
+    else if(d.state==='claimed')actions='<p class="hint">Ожидаем подтверждения оплаты гарантом.</p>';
+    else if(d.state==='paid')actions='<p class="hint">Оплата подтверждена. Продавец передаёт подарок гаранту.</p>';
+    else if(d.state==='manager')actions='<p class="hint">Подарок у гаранта. Ожидайте завершения сделки.</p>';
   }else{
     if(['created','participant'].includes(d.state))actions='<p class="hint">Ждём оплату от покупателя.</p>';
-    else if(['claimed','paid'].includes(d.state))actions='<button class="primary" id="sendGift">Передать подарок гаранту</button>';
-    else if(d.state==='manager')actions='<p class="hint">Подарок передан гаранту. Ожидай завершения.</p>';
+    else if(d.state==='claimed')actions='<p class="hint">Покупатель отметил оплату. Ждём подтверждения гаранта.</p>';
+    else if(d.state==='paid')actions='<button class="primary" id="sendGift">Передать подарок гаранту</button>';
+    else if(d.state==='manager')actions='<p class="hint">Подарок у гаранта. Ожидайте завершения сделки.</p>';
   }
   if(!['done','cancelled'].includes(d.state))actions+='<button class="secondary" id="cancel">Отменить</button>';
   const link=shareLink(d);
@@ -242,7 +245,6 @@ function openDeal(id){
   });
   $('#claim')?.addEventListener('click',()=>change('claimed'));
   $('#verify')?.addEventListener('click',()=>change('paid'));
-  $('#gift')?.addEventListener('click',()=>change('manager'));
   $('#finish')?.addEventListener('click',()=>change('done'));
   $('#cancel')?.addEventListener('click',()=>{d.state='cancelled';saveLocal();render();close();toast('Сделка отменена')});
 }
