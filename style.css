@@ -178,7 +178,8 @@ header button:hover,.arrow:hover{transform:translateY(-1px);box-shadow:var(--sha
 .cardtop span{animation:spark 2.6s ease-in-out infinite}
 @keyframes spark{0%,100%{opacity:.9;transform:translateY(0)}50%{opacity:.45;transform:translateY(-2px)}}
 .person{display:flex;align-items:center;gap:13px;margin-top:14%;position:relative;z-index:1}
-.avatar{width:clamp(46px,8%,58px);height:clamp(46px,8%,58px);flex:0 0 auto;border:2px solid #ffffffa0;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.22);font-weight:800;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);overflow:hidden;background-size:cover;background-position:center}
+.avatar{width:52px;height:52px;flex:0 0 52px;border:2px solid #ffffffa0;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.22);font-weight:800;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);overflow:hidden;aspect-ratio:1/1}
+.avatar img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;border-radius:50%}
 .avatar-img{width:100%;height:100%;display:block;background-size:cover;background-position:center;border-radius:50%}
 .avnote{display:block;margin-top:3px;opacity:.6;font-size:8.5px}
 .person b{display:block;font-size:clamp(15px,2.6%,19px)}
