@@ -90,7 +90,7 @@ async function importStart(){
 /* ---------- ui helpers ---------- */
 function toast(s){const t=$('#toast');if(!t)return;t.textContent=s;t.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>t.classList.remove('show'),2600)}
 function modal(s){$('#modalContent').innerHTML=s;$('#backdrop').classList.add('show')}
-function close(){$('#backdrop').classList.remove('show')}
+function close(){window.__openDeal=null;$('#backdrop').classList.remove('show')}
 $('#close').onclick=close;
 $('#backdrop').onclick=e=>{if(e.target.id==='backdrop')close()};
 
@@ -180,6 +180,7 @@ function statusHint(s){return ({created:'Ожидаем подключения �
 
 function openDeal(id){
   const d=deals.find(x=>x.id===id);if(!d)return;
+  window.__openDeal=id;
   const n=d.state==='done'?4:d.state==='manager'?3:['paid','claimed'].includes(d.state)?2:d.state==='participant'?1:0;
   const cur=coins.find(c=>c.code===d.currency)||coins[0];
   const feeRate=.01,amount=Number(d.amount)||0,fee=amount*feeRate;
@@ -361,6 +362,18 @@ wallet();
 render();
 rateNow();
 setInterval(rateNow,5*60*1000);
+async function syncDeals(){
+  if(!apiLive)return;
+  try{
+    const r=await api('/api/deals');
+    const list=r.deals||[];
+    if(JSON.stringify(list)===JSON.stringify(deals))return;
+    deals=list;saveLocal();render();
+    const open=window.__openDeal;
+    if(open&&deals.some(x=>x.id===open))openDeal(open);
+  }catch(e){}
+}
+setInterval(syncDeals,10000);
 (async()=>{
   if(!TG){
     await new Promise(r=>{const s=document.createElement('script');s.src='https://telegram.org/js/telegram-web-app.js';s.async=true;s.onload=s.onerror=r;document.head.appendChild(s);setTimeout(r,2500)});
