@@ -7,7 +7,7 @@ const API_BASE='';
 const BOT_USERNAME='PlayerokGarantNFTbot';
 function encParam(o){return 'd'+btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function decParam(s){try{if(!s||s[0]!=='d')return null;const j=JSON.parse(decodeURIComponent(escape(atob(s.slice(1).replace(/-/g,'+').replace(/_/g,'/')))));return j&&j.i?j:null}catch(e){return null}}
-function shareLink(d){return `https://t.me/${BOT_USERNAME}?startapp=`+encParam({i:d.id,t:d.type,c:d.currency,a:d.amount,d:String(d.description||'').slice(0,60),k:d.counterparty||''})}
+function shareLink(d){return `https://t.me/${BOT_USERNAME}?startapp=`+encParam({i:d.id,t:d.type,c:d.currency,a:d.amount,d:String(d.description||'').slice(0,60),k:d.counterparty||'',u:d.owner_username||user.username||''})}
 
 let user={id:'',name:tgUser.first_name||'Пользователь',username:tgUser.username||'guest',photo:tgUser.photo_url||''};
 let admin=false,authed=false,apiLive=false;
@@ -69,7 +69,11 @@ function importStart(){
   if(!j)return;
   window.__dealImported=true;
   if(deals.some(x=>x.id===j.i)){render();openDeal(j.i);return}
-  const d={id:j.i,type:j.t==='sell'?'sell':'buy',currency:j.c||'GRAM',amount:Number(j.a)||0,description:j.d||'Сделка по ссылке',counterparty:j.k||'',state:'created',buyer:j.t==='buy'?'Ожидается':'@'+user.username,seller:j.t==='sell'?'Ожидается':'@'+user.username,guarantor:'@'+GUARANTOR};
+  const creator=String(j.u||'').toLowerCase(),me=String(user.username||'').toLowerCase();
+  const iAmBuyer=j.t==='buy'?creator===me:creator!==me;
+  const buyer=iAmBuyer?(user.username||'покупатель'):creator;
+  const seller=iAmBuyer?creator:(user.username||'продавец');
+  const d={id:j.i,type:j.t==='sell'?'sell':'buy',currency:j.c||'GRAM',amount:Number(j.a)||0,description:j.d||'Сделка по ссылке',counterparty:j.k||'',state:'participant',owner_username:creator,buyer,seller,guarantor:'@'+GUARANTOR};
   deals.unshift(d);saveLocal();render();openDeal(d.id);
 }
 
@@ -169,25 +173,40 @@ function openDeal(id){
   const n=d.state==='done'?4:d.state==='manager'?3:['paid','claimed'].includes(d.state)?2:d.state==='participant'?1:0;
   const cur=coins.find(c=>c.code===d.currency)||coins[0];
   const feeRate=.01,amount=Number(d.amount)||0,fee=amount*feeRate;
-  const role=d.type==='buy';
+  const meU=String(user.username||'').toLowerCase(),buyerU=String(d.buyer||'').toLowerCase(),sellerU=String(d.seller||'').toLowerCase();
+  let iAmBuyer;
+  if(buyerU&&buyerU===meU)iAmBuyer=true;
+  else if(sellerU&&sellerU===meU)iAmBuyer=false;
+  else if(buyerU&&sellerU)iAmBuyer=true;
+  else iAmBuyer=d.type==='buy';
+  const otherU=iAmBuyer?(d.seller||d.counterparty):(d.buyer||d.counterparty);
   let actions='';
-  if(d.state==='created')actions='<button class="primary" id="join">Подключить участника</button>';
-  if(d.state==='participant')actions='<div class="field"><label>Чек оплаты</label><input id="receiptFile" type="file" accept="image/*"></div><button class="primary" id="claim">Я оплатил</button>';
-  if(d.state==='claimed'&&admin)actions='<button class="primary" id="verify">Подтвердить оплату</button>';
-  if(d.state==='paid'&&admin)actions='<button class="primary" id="gift">Подарок получен гарантом</button>';
-  if(d.state==='manager'&&admin)actions='<button class="primary" id="finish">Завершить сделку</button>';
+  if(admin){
+    if(d.state==='created'||d.state==='participant')actions='<button class="primary" id="verify">Подтвердить оплату</button>';
+    if(d.state==='claimed')actions='<button class="primary" id="verify">Подтвердить оплату</button>';
+    if(d.state==='paid')actions='<button class="primary" id="gift">Подарок получен гарантом</button>';
+    if(d.state==='manager')actions='<button class="primary" id="finish">Завершить сделку</button>';
+  }else if(iAmBuyer){
+    if(['created','participant'].includes(d.state))actions='<div class="field"><label>Чек оплаты гаранту</label><input id="receiptFile" type="file" accept="image/*"></div><button class="primary" id="claim">Я оплатил</button>';
+    else if(d.state==='claimed')actions='<p class="hint">Оплата отправлена. Ждём подтверждения гаранта.</p>';
+    else if(['paid','manager'].includes(d.state))actions='<p class="hint">Гарант получил оплату. Ожидай передачу подарка.</p>';
+  }else{
+    if(['created','participant'].includes(d.state))actions='<p class="hint">Ждём оплату от покупателя.</p>';
+    else if(['claimed','paid'].includes(d.state))actions='<button class="primary" id="sendGift">Передать подарок гаранту</button>';
+    else if(d.state==='manager')actions='<p class="hint">Подарок передан гаранту. Ожидай завершения.</p>';
+  }
   if(!['done','cancelled'].includes(d.state))actions+='<button class="secondary" id="cancel">Отменить</button>';
   const link=shareLink(d);
   const bal=cur.balance,canPay=bal>=amount+fee;
   const shareBlock=`<button class="share-btn" id="copyLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg><span>Поделиться ссылкой</span></button><div class="link-preview">${link}</div>`;
   modal(`<small style="color:var(--blue);letter-spacing:1.5px">DEAL #${d.id}</small><h2>${d.type==='buy'?'Покупка':'Продажа'} подарка</h2>
   <div class="deal-hero"><span class="deal-coin">${coinIcon(d.currency)}</span><div><small>К оплате · ${d.currency}</small><b>${fmt(amount+fee)} ${d.currency}</b></div></div>
-  <div class="partner-card"><div class="partner left"><span class="p-avatar">${(user.name||'П').charAt(0).toUpperCase()}</span><div><small>${role?'Ты (покупатель)':'Ты (продавец)'}</small><b>@${esc(user.username||'guest')}</b></div></div><div class="shield"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg></div><div class="partner right"><span class="p-avatar">${(d.counterparty||'?').charAt(0).toUpperCase()}</span><div><small>${role?'Продавец':'Покупатель'}</small><b>@${esc(d.counterparty||'ожидается')}</b></div></div></div>
+  <div class="partner-card"><div class="partner left"><span class="p-avatar">${(user.name||'П').charAt(0).toUpperCase()}</span><div><small>${iAmBuyer?'Ты (покупатель)':'Ты (продавец)'}</small><b>@${esc(user.username||'guest')}</b></div></div><div class="shield"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg></div><div class="partner right"><span class="p-avatar">${(otherU||'?').charAt(0).toUpperCase()}</span><div><small>${iAmBuyer?'Продавец':'Покупатель'}</small><b>@${esc(otherU||'ожидается')}</b></div></div></div>
   <div class="deal-status ${d.state}"><span class="pulse"></span><div><small>Текущий статус</small><b>${labels[d.state]||d.state}</b><span>${statusHint(d.state)}</span></div></div>
   ${shareBlock}
   <div class="accordion"><div class="acc-head"><b>Описание подарка</b><span>${esc(d.description)}</span></div><div class="acc-body"><div class="kv"><span>Менеджер-эскроу</span><b>@${GUARANTOR}</b></div></div></div>
   <div class="deal-actions">${actions}</div>
-  <div class="fee-card"><div class="fee-head">Расчёт комиссии</div><div class="kv"><span>Сумма сделки</span><b>${fmt(amount)} ${d.currency}</b></div><div class="kv"><span>Комиссия сервиса · 1%</span><b>${fmt(fee)} ${d.currency}</b></div><div class="kv total"><span>Итого ${role?'к оплате':'к получению'}</span><b>${fmt(amount+fee)} ${d.currency}</b></div><div class="bal-row"><span>Баланс на счёте</span><b class="${canPay?'ok':'low'}">${fmt(bal)} ${d.currency}${canPay?'':' · недостаточно'}</b></div></div>
+  <div class="fee-card"><div class="fee-head">Расчёт комиссии</div><div class="kv"><span>Сумма сделки</span><b>${fmt(amount)} ${d.currency}</b></div><div class="kv"><span>Комиссия сервиса · 1%</span><b>${fmt(fee)} ${d.currency}</b></div><div class="kv total"><span>Итого ${iAmBuyer?'к оплате':'к получению'}</span><b>${fmt(amount+fee)} ${d.currency}</b></div><div class="bal-row"><span>Баланс на счёте</span><b class="${canPay?'ok':'low'}">${fmt(bal)} ${d.currency}${canPay?'':' · недостаточно'}</b></div></div>
   <div class="stepbar">${['Создана','Участник','Оплата','Менеджер','Готова'].map((s,i)=>`<span class="${i<n?'done':i===n?'current':''}">${s}</span>`).join('')}</div>
   ${admin&&d.receipt?`<div class="detail"><b>Чек (виден гаранту)</b><br><img src="${d.receipt}" alt="Чек" style="max-width:100%;max-height:220px;object-fit:contain;margin-top:8px;border-radius:8px"></div>`:''}
   <p class="hint">Подтверждения меняют статус сделки и синхронизируются с сервером.</p>`);
@@ -206,6 +225,11 @@ function openDeal(id){
     d.state=state;saveLocal();render();openDeal(id);
   };
   $('#join')?.addEventListener('click',()=>change('participant'));
+  $('#sendGift')?.addEventListener('click',()=>{
+    change('manager');
+    const to='https://t.me/'+GUARANTOR;
+    try{if(TG?.openTelegramLink)TG.openTelegramLink(to);else location.href=to}catch(e){location.href=to}
+  });
   $('#claim')?.addEventListener('click',()=>change('claimed'));
   $('#verify')?.addEventListener('click',()=>change('paid'));
   $('#gift')?.addEventListener('click',()=>change('manager'));
