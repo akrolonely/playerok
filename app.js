@@ -3,7 +3,7 @@ let TG=window.Telegram?.WebApp;
 let initData=TG?.initData||'';
 let tgUser=TG?.initDataUnsafe?.user||{};
 const GUARANTOR='PLGiftSend';
-const API_BASE='';
+const API_BASE='https://playerok-api.ruslandrobchenko2010.workers.dev';
 const BOT_USERNAME='PlayerokGarantNFTbot';
 function encParam(o){return 'd'+btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function decParam(s){try{if(!s||s[0]!=='d')return null;const j=JSON.parse(decodeURIComponent(escape(atob(s.slice(1).replace(/-/g,'+').replace(/_/g,'/')))));return j&&j.i?j:null}catch(e){return null}}
