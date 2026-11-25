@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0e1219">
+<title>PLAYEROK — маркетплейс игровых товаров и услуг</title>
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div><div class="orb orb4"></div>
+<div class="shell">
+  <header>
+    <div class="brand"><b>P</b> PLAYEROK</div>
+    <div id="identity">Гость</div>
+    <button id="theme" aria-label="Сменить тему">☾</button>
+  </header>
+  <main>
+    <section class="page active" id="deals">
+      <div class="heading">
+        <div><small>PLAYEROK EXCHANGE</small><h1>Сделки</h1><p>Сопровождение сделок с цифровыми подарками</p></div>
+        <button class="primary" id="create">＋ Создать сделку</button>
+      </div>
+      <div id="authNotice" class="auth-notice hidden">
+        Создание и ведение сделок доступно внутри Telegram. Откройте приложение через бота.
+      </div>
+      <div class="tabs"><button class="selected" data-filter="active">Активные <b id="count">0</b></button><button data-filter="history">История</button></div>
+      <div id="dealList"></div>
+      <div class="activity" id="activity"><div class="orbit"><i>↗</i></div><div><b>Сделки под контролем</b><p>Здесь появится лента активности по сделкам</p></div></div>
+      <section id="admin" class="hidden">
+        <div class="sectionhead"><div><small>GUARANTOR WORKSPACE</small><h2>Панель гаранта</h2></div><span class="verified">Доступ подтверждён</span></div>
+        <div class="stats"><div>Активные<b id="aActive">0</b></div><div>Ожидают проверки<b id="aPending">0</b></div><div>Завершено<b id="aDone">0</b></div></div>
+        <div id="adminList"></div>
+        <p class="hint">Права гаранта проверяются на сервере по криптографически подписанному Telegram initData.</p>
+      </section>
+    </section>
+
+    <section class="page" id="wallets">
+      <div class="heading"><div><small>YOUR ASSETS</small><h1>Кошельки</h1><p>Балансы цифровых активов и валют</p></div></div>
+      <div class="wallet-stage"><button class="arrow" id="prev" aria-label="Предыдущая валюта">‹</button><div id="walletCard"></div><button class="arrow" id="next" aria-label="Следующая валюта">›</button></div>
+      <div id="dots" class="dots"></div>
+      <div class="actions"><button class="primary" id="deposit">Пополнить</button><button class="secondary" id="withdraw">Вывести</button></div>
+      <div class="balance"><span>Доступно</span><b id="balance">0</b><small id="currencyLabel">GRAM</small></div>
+      <div class="sectionhead"><div><small>OVERVIEW</small><h2>Все активы</h2></div></div>
+      <div id="assets"></div>
+    </section>
+
+    <section class="page" id="profile">
+      <div class="heading"><div><small>ACCOUNT</small><h1>Профиль</h1><p>Твоя карточка трейдера</p></div></div>
+      <div class="profile-card" id="traderCard" data-design="classic">
+        <div class="face front">
+          <div class="cardtop">PLAYEROK <i>·</i> TRADER CARD <span>▰</span></div>
+          <div class="person">
+            <div class="avatar" id="avatar">U</div>
+            <div><b id="pName">Пользователь</b><small id="pUser">@username</small><small class="avnote hidden" id="avatarNote">фото профиля недоступно</small></div>
+          </div>
+          <div class="cardbottom">TRADER STATUS <b>VERIFIED</b></div>
+          <strong class="watermark">P</strong>
+        </div>
+        <div class="face back">
+          <div class="cardtop">PLAYEROK <i>·</i> TRADER CARD <span>PROFILE</span></div>
+          <div class="details">
+            <div>Telegram ID<b id="pId">—</b></div>
+            <div>Всего сделок<b id="pTotal">0</b></div>
+            <div>Успешных<b id="pSuccess">0</b></div>
+            <div>Отменённых<b id="pCancel">0</b></div>
+            <div>Завершённых<b id="pDone">0</b></div>
+          </div>
+          <div class="cardbottom">PLAYEROK · TRADER CARD <b>PROFILE</b></div>
+        </div>
+      </div>
+      <div class="cardtools">
+        <div class="row">
+          <button class="secondary" id="flip">↻ Перевернуть карту</button>
+          <label class="tiny">Цвет карты</label>
+          <span class="swatch"><input type="color" id="cardColor" value="#2b6bff"></span>
+        </div>
+        <div class="card-designs">Дизайн
+          <span class="dchip selected" data-design="classic" title="Classic">✦</span>
+          <span class="dchip" data-design="crystal" title="Crystal">❖</span>
+          <span class="dchip" data-design="neon" title="Neon">▦</span>
+          <span class="dchip" data-design="sunset" title="Sunset">◐</span>
+          <span class="dchip" data-design="mesh" title="Mesh">◔</span>
+        </div>
+      </div>
+      <div class="sectionhead"><div><small>BALANCE</small><h2>Мои балансы</h2></div><label class="hidezero-toggle"><input type="checkbox" id="hideZero"><span class="hzt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg><span>Скрыть нулевые</span></span></label></div>
+      <div id="profileAssets"></div>
+      <div class="sectionhead"><div><small>MARKET</small><h2>Курс к USD</h2></div><span class="hint" id="ratesUpdated">—</span></div>
+      <div class="rates" id="rates">
+        <div data-rate="TON"><i class="rate-ic" style="--tint:#3f7bff">◉</i><div><b>$0</b><span class="rate-time">—</span></div></div>
+        <div data-rate="BTC"><i class="rate-ic" style="--tint:#f59c35">₿</i><div><b>$0</b><span class="rate-time">—</span></div></div>
+        <div data-rate="USDT"><i class="rate-ic" style="--tint:#22b07a">₮</i><div><b>$0</b><span class="rate-time">—</span></div></div>
+        <div data-rate="ETH"><i class="rate-ic" style="--tint:#6979bb">♦</i><div><b>$0</b><span class="rate-time">—</span></div></div>
+      </div>
+      <div class="settings">
+        <div><b>Тёмная тема</b><label class="switch"><input type="checkbox" id="themeSwitch"><span></span></label></div>
+        <div><b>Аккаунт</b><span id="accountInfo">—</span></div>
+        <p class="hint">Профиль, юзернейм и фото подтягиваются из Telegram. Если фото недоступно, оно скрыто. Гарант сделок: <b>@PLGiftSend</b>.</p>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer">2026 © Playerok — маркетплейс игровых товаров и услуг. Все права защищены.</footer>
+  <nav>
+    <span class="nav-indicator" id="navIndicator"></span>
+    <button class="nav selected" data-page="deals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 4 4-8"/></svg><small>Сделки</small></button>
+    <button class="nav" data-page="wallets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M3 7l2-4h13l2 4"/><path d="M16 14h2"/></svg><small>Кошельки</small></button>
+    <button class="nav" data-page="profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/></svg><small>Профиль</small></button>
+  </nav>
+</div>
+<div class="backdrop" id="backdrop"><div class="modal"><button class="close" id="close">×</button><div id="modalContent"></div></div></div>
+<div class="toast" id="toast"></div>
+</body>
+</html>
