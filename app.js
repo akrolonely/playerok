@@ -61,13 +61,23 @@ async function boot(){
     else if(!authed)n.classList.remove('hidden');
   }
 }
-function importStart(){
+async function importStart(){
   if(window.__dealImported)return;
   const sp=TG?.initDataUnsafe?.start_param;
   if(!sp)return;
   const j=decParam(sp);
   if(!j)return;
   window.__dealImported=true;
+  if(apiLive){
+    try{
+      const res=await api('/api/deals/'+j.i+'/join',{method:'POST'});
+      if(res&&res.deal){
+        const got=res.deal,i=deals.findIndex(x=>x.id===got.id);
+        if(i>=0)deals[i]=got;else deals.unshift(got);
+        saveLocal();render();openDeal(got.id);return;
+      }
+    }catch(e){}
+  }
   if(deals.some(x=>x.id===j.i)){render();openDeal(j.i);return}
   const creator=String(j.u||'').toLowerCase(),me=String(user.username||'').toLowerCase();
   const iAmBuyer=j.t==='buy'?creator===me:creator!==me;
