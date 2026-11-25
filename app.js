@@ -205,7 +205,7 @@ function openDeal(id){
     else if(d.state==='manager')actions='<p class="hint">Подарок у гаранта. Ожидайте завершения сделки.</p>';
   }else{
     if(['created','participant'].includes(d.state))actions='<p class="hint">Ждём оплату от покупателя.</p>';
-    else if(d.state==='claimed')actions='<p class="hint">Покупатель отметил оплату. Ждём подтверждения гаранта.</p>';
+    else if(d.state==='claimed')actions='<button class="primary" id="sendGift" disabled>Передать подарок гаранту</button><p class="hint">Кнопка включится, когда гарант подтвердит оплату.</p>';
     else if(d.state==='paid')actions='<button class="primary" id="sendGift">Передать подарок гаранту</button>';
     else if(d.state==='manager')actions='<p class="hint">Подарок у гаранта. Ожидайте завершения сделки.</p>';
   }
@@ -373,7 +373,9 @@ async function syncDeals(){
     if(open&&deals.some(x=>x.id===open))openDeal(open);
   }catch(e){}
 }
-setInterval(syncDeals,10000);
+setInterval(syncDeals,5000);
+document.addEventListener('visibilitychange',()=>{document.body.classList.toggle('idle',document.hidden);if(!document.hidden)syncDeals()});
+const refreshBtn=document.getElementById('refreshDeals');if(refreshBtn)refreshBtn.onclick=()=>{syncDeals().then(()=>toast('Обновлено'))};
 (async()=>{
   if(!TG){
     await new Promise(r=>{const s=document.createElement('script');s.src='https://telegram.org/js/telegram-web-app.js';s.async=true;s.onload=s.onerror=r;document.head.appendChild(s);setTimeout(r,2500)});
