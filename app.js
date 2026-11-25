@@ -62,10 +62,12 @@ async function boot(){
   }
 }
 function importStart(){
+  if(window.__dealImported)return;
   const sp=TG?.initDataUnsafe?.start_param;
   if(!sp)return;
   const j=decParam(sp);
   if(!j)return;
+  window.__dealImported=true;
   if(deals.some(x=>x.id===j.i)){render();openDeal(j.i);return}
   const d={id:j.i,type:j.t==='sell'?'sell':'buy',currency:j.c||'GRAM',amount:Number(j.a)||0,description:j.d||'Сделка по ссылке',counterparty:j.k||'',state:'created',buyer:j.t==='buy'?'Ожидается':'@'+user.username,seller:j.t==='sell'?'Ожидается':'@'+user.username,guarantor:'@'+GUARANTOR};
   deals.unshift(d);saveLocal();render();openDeal(d.id);
@@ -95,10 +97,10 @@ function paintIdentity(){
   if($('#pName'))$('#pName').textContent=user.name;
   if($('#pUser'))$('#pUser').textContent=user.username?'@'+user.username:'—';
   if($('#pId'))$('#pId').textContent=user.id||'—';
-  const av=$('#avatar'),note=$('#avatarNote');
+  const av=$('#avatar');
   if(av){
-    if(user.photo){av.innerHTML=`<img src="${esc(user.photo)}" alt="">`;av.classList.remove('hidden');if(note)note.classList.add('hidden')}
-    else{av.innerHTML='';av.textContent=(user.name||'П').charAt(0).toUpperCase();av.classList.remove('hidden');if(note)note.classList.remove('hidden')}
+    if(user.photo){av.textContent='';av.style.backgroundImage='url("'+String(user.photo).replace(/"/g,'%22')+'")'}
+    else{av.style.backgroundImage='';av.textContent=(user.name||'П').charAt(0).toUpperCase()}
   }
   if($('#admin'))$('#admin').classList.toggle('hidden',!admin);
 }
@@ -254,52 +256,18 @@ async function loadTon(){
   tonUI=new TON_CONNECT_UI.TonConnectUI({manifestUrl:TON_MANIFEST});
   return tonUI;
 }
-function tonReceiver(){try{return (localStorage.getItem('pkreceiver')||'').trim()}catch(e){return ''}}
+function tonShort(addr){return addr?addr.slice(0,4)+'…'+addr.slice(-4):''}
 function deposit(){
   const c=coins[wi];
-  const note=c.code==='TON'?'Зачисление на баланс TON.':`Пополнение ${c.name} проходит оплатой в TON, зачисление — на баланс TON.`;
-  modal(`<small style="color:var(--blue)">WALLET · TON CONNECT</small><h2>Пополнение</h2><p class="hint">${note}</p><form id="dep" class="form"><div class="field"><label>Сумма (TON)</label><input name="amount" type="number" min="0.1" step="0.01" placeholder="Например, 5" required></div><button class="primary">Перейти к оплате</button></form><p class="hint">Кошелёк подключается через TON Connect.</p>`);
-  $('#dep').onsubmit=e=>{
-    e.preventDefault();
-    const amount=Number(new FormData(e.target).get('amount'));
-    if(!(amount>0))return toast('Укажи корректную сумму');
-    tonCheckout(amount);
-  };
-}
-async function tonCheckout(amount){
-  let to=tonReceiver();
-  if(!to){
-    modal(`<small style="color:var(--blue)">PAYMENT ADDRESS</small><h2>Адрес для приёма</h2><form id="recv" class="form"><div class="field"><label>TON-адрес получателя</label><input name="addr" placeholder="UQ… или EQ…" required></div><button class="primary">Сохранить и продолжить</button></form><p class="hint">Адрес сохранится в этом браузере.</p>`);
-    $('#recv').onsubmit=e=>{
-      e.preventDefault();
-      const addr=String(new FormData(e.target).get('addr')).trim();
-      if(!/^(EQ|UQ)[A-Za-z0-9_-]{46,48}$/.test(addr))return toast('Похоже, адрес неверный');
-      try{localStorage.setItem('pkreceiver',addr)}catch(err){}
-      tonCheckout(amount);
-    };
-    return;
-  }
-  modal(`<h2>Подключение кошелька</h2><p>Подтверди подключение в кошельке. После этого откроется перевод на ${amount} TON.</p>`);
-  let ui;
-  try{ui=await loadTon()}
-  catch(e){modal(`<h2>TON Connect недоступен</h2><p>Не удалось загрузить SDK. Проверь интернет и попробуй снова.</p><button class="primary" id="tok">Понятно</button>`);$('#tok').onclick=close;return}
-  try{
-    if(!ui.connected){
-      ui.openModal();
-      await new Promise((res,rej)=>{
-        const t=setTimeout(()=>rej(new Error('timeout')),90000);
-        const un=ui.onStatusChange(w=>{if(w){clearTimeout(t);try{un&&un()}catch(e){};res()}});
-      });
-    }
-    await ui.sendTransaction({validUntil:Math.floor(Date.now()/1000)+300,messages:[{address:to,amount:String(Math.round(amount*1e9))}]});
-  }catch(e){
-    modal(`<h2>Платёж не отправлен</h2><p>Кошелёк не подключён или перевод отменён.</p><button class="primary" id="tok">Понятно</button>`);
-    $('#tok').onclick=close;return;
-  }
-  close();
-  const c=coins.find(x=>x.code==='TON');
-  if(c){c.balance=(c.balance||0)+amount;wallet()}
-  toast('Баланс пополнен на '+amount+' TON');
+  modal(`<small style="color:var(--blue)">WALLET · TON CONNECT</small><h2>Пополнение ${c.code}</h2><p class="hint">Подключи TON-кошелёк — он привяжется к аккаунту. Приём платежей пока в тестовом режиме.</p><button class="primary" id="tonConnect">Подключить кошелёк</button><p class="hint" id="tonState">Загрузка TON Connect…</p>`);
+  const st=$('#tonState'),btn=$('#tonConnect');
+  const show=addr=>{st.textContent='Кошелёк: '+tonShort(addr);btn.textContent='Кошелёк подключён';btn.disabled=true;try{localStorage.setItem('pktonwallet',addr)}catch(e){}};
+  loadTon().then(ui=>{
+    if(ui.connected&&ui.wallet)return show(ui.wallet.account.address);
+    st.textContent='Кошелёк не подключён';
+    btn.onclick=()=>{st.textContent='Открываю окно подключения…';ui.openModal().catch(()=>{st.textContent='Не удалось открыть кошелёк'})};
+    ui.onStatusChange(w=>{if(w&&w.account)show(w.account.address)});
+  }).catch(()=>{st.textContent='TON Connect недоступен: проверь интернет'});
 }
 function withdraw(){
   const c=coins[wi];
@@ -368,4 +336,5 @@ setInterval(rateNow,5*60*1000);
   paintIdentity();
   await boot();
   importStart();
+  [500,1500,3000].forEach(t=>setTimeout(()=>{try{importStart()}catch(e){}},t));
 })();
