@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0e1219">
 <title>PLAYEROK — маркетплейс игровых товаров и услуг</title>
-<link rel="stylesheet" href="style.css">
-<script src="app.js" defer></script>
+<link rel="stylesheet" href="style.css?v=19">
+<script src="app.js?v=19" defer></script>
 </head>
 <body>
 <div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div><div class="orb orb4"></div>
@@ -25,7 +25,7 @@
       <div id="authNotice" class="auth-notice hidden">
         Создание и ведение сделок доступно внутри Telegram. Откройте приложение через бота.
       </div>
-      <div class="tabs"><button class="selected" data-filter="active">Активные <b id="count">0</b></button><button data-filter="history">История</button></div>
+      <div class="tabs"><button class="selected" data-filter="active">Активные <b id="count">0</b></button><button id="refreshDeals" title="Обновить">↻</button><button data-filter="history">История</button></div>
       <div id="dealList"></div>
       <div class="activity" id="activity"><div class="orbit"><i>↗</i></div><div><b>Сделки под контролем</b><p>Здесь появится лента активности по сделкам</p></div></div>
       <section id="admin" class="hidden">
