@@ -236,7 +236,8 @@ function openDeal(id){
   modal(`<small style="color:var(--blue);letter-spacing:1.5px">DEAL #${d.id}</small><h2>${d.type==='buy'?'Покупка':'Продажа'} подарка</h2>
   <div class="deal-hero"><span class="deal-coin">${coinIcon(d.currency)}</span><div><small>К оплате · ${d.currency}</small><b>${fmt(amount+fee)} ${d.currency}</b></div></div>
   <div class="partner-card"><div class="partner left"><span class="p-avatar">${(user.name||'П').charAt(0).toUpperCase()}</span><div><small>${iAmBuyer?'Ты (покупатель)':'Ты (продавец)'}</small><b>@${esc(user.username||'guest')}</b></div></div><div class="shield"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg></div><div class="partner right"><span class="p-avatar">${(otherU||'?').charAt(0).toUpperCase()}</span><div><small>${iAmBuyer?'Продавец':'Покупатель'}</small><b>@${esc(otherU||'ожидается')}</b></div></div></div>
-  <div class="deal-status ${d.state}"><span class="pulse"></span><div><small>Текущий статус</small><b>${labels[d.state]||d.state}</b><span>${statusHint(d.state)}</span></div></div>`n  <div class="deal-timer" id="dealTimer"></div>
+  <div class="deal-status ${d.state}"><span class="pulse"></span><div><small>Текущий статус</small><b>${labels[d.state]||d.state}</b><span>${statusHint(d.state)}</span></div></div>
+  <div class="deal-timer" id="dealTimer"></div>
   ${shareBlock}
   <div class="accordion"><div class="acc-head"><b>Описание подарка</b><span>${esc(d.description)}</span></div><div class="acc-body"><div class="kv"><span>Менеджер-эскроу</span><b>@${GUARANTOR}</b></div></div></div>
   <div class="deal-actions">${actions}</div>
