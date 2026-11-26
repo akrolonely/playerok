@@ -109,7 +109,7 @@ async function importStart(){
 /* ---------- ui helpers ---------- */
 function toast(s){const t=$('#toast');if(!t)return;t.textContent=s;t.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>t.classList.remove('show'),2600)}
 function modal(s){$('#modalContent').innerHTML=s;$('#backdrop').classList.add('show')}
-function close(){window.__openDeal=null;$('#backdrop').classList.remove('show')}
+function close(){window.__openDeal=null;clearInterval(window.__dealTimerInt);$('#backdrop').classList.remove('show')}
 $('#close').onclick=close;
 $('#backdrop').onclick=e=>{if(e.target.id==='backdrop')close()};
 
@@ -166,7 +166,7 @@ function dealForm(type){
     if(!(amount>0))return toast('Укажи корректную сумму');
     const desc=String(f.get('description')).trim();
     if(desc.length<5)return toast('Описание должно быть не короче 5 символов');
-    const d={type,currency:f.get('currency'),amount,description:desc,counterparty:String(f.get('counterparty')).replace(/^@/,'').trim(),state:'created',id:Math.random().toString(36).slice(2,8).toUpperCase(),buyer:type==='buy'?'@'+user.username:'Ожидается',seller:type==='sell'?'@'+user.username:'Ожидается',guarantor:'@'+GUARANTOR};
+    const d={type,currency:f.get('currency'),amount,description:desc,counterparty:String(f.get('counterparty')).replace(/^@/,'').trim(),state:'created',id:Math.random().toString(36).slice(2,8).toUpperCase(),buyer:type==='buy'?'@'+user.username:'Ожидается',seller:type==='sell'?'@'+user.username:'Ожидается',guarantor:'@'+GUARANTOR,created:Date.now()};
     safety(d);
   };
 }
@@ -236,7 +236,7 @@ function openDeal(id){
   modal(`<small style="color:var(--blue);letter-spacing:1.5px">DEAL #${d.id}</small><h2>${d.type==='buy'?'Покупка':'Продажа'} подарка</h2>
   <div class="deal-hero"><span class="deal-coin">${coinIcon(d.currency)}</span><div><small>К оплате · ${d.currency}</small><b>${fmt(amount+fee)} ${d.currency}</b></div></div>
   <div class="partner-card"><div class="partner left"><span class="p-avatar">${(user.name||'П').charAt(0).toUpperCase()}</span><div><small>${iAmBuyer?'Ты (покупатель)':'Ты (продавец)'}</small><b>@${esc(user.username||'guest')}</b></div></div><div class="shield"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg></div><div class="partner right"><span class="p-avatar">${(otherU||'?').charAt(0).toUpperCase()}</span><div><small>${iAmBuyer?'Продавец':'Покупатель'}</small><b>@${esc(otherU||'ожидается')}</b></div></div></div>
-  <div class="deal-status ${d.state}"><span class="pulse"></span><div><small>Текущий статус</small><b>${labels[d.state]||d.state}</b><span>${statusHint(d.state)}</span></div></div>
+  <div class="deal-status ${d.state}"><span class="pulse"></span><div><small>Текущий статус</small><b>${labels[d.state]||d.state}</b><span>${statusHint(d.state)}</span></div></div>`n  <div class="deal-timer" id="dealTimer"></div>
   ${shareBlock}
   <div class="accordion"><div class="acc-head"><b>Описание подарка</b><span>${esc(d.description)}</span></div><div class="acc-body"><div class="kv"><span>Менеджер-эскроу</span><b>@${GUARANTOR}</b></div></div></div>
   <div class="deal-actions">${actions}</div>
@@ -254,7 +254,20 @@ function openDeal(id){
     if(!file.type.startsWith('image/'))return toast('Выбери изображение');
     const reader=new FileReader();reader.onload=()=>{d.receipt=reader.result;toast('Чек добавлен; доступен гаранту')};reader.readAsDataURL(file);
   });
-  const change=async(state)=>{
+  clearInterval(window.__dealTimerInt);
+  (function(){
+    const el=$('#dealTimer');
+    if(!el)return;
+    if(['done','cancelled'].includes(d.state)){el.textContent=d.state==='cancelled'?'⛔ Сделка закрыта':'✅ Сделка завершена';return}
+    const tick=()=>{
+      const left=Math.max(0,Number(d.created||Date.now())+15*60*1000-Date.now());
+      const mm=Math.floor(left/60000),ss=Math.floor(left%60000/1000);
+      el.textContent=left>0?('⏳ Осталось '+mm+':'+String(ss).padStart(2,'0')):'⌛ Время истекло';
+      el.classList.toggle('low',left<120000);
+      if(left<=0)clearInterval(window.__dealTimerInt);
+    };
+    tick();window.__dealTimerInt=setInterval(tick,1000);
+  })();  const change=async(state)=>{
     try{if(apiLive)await api('/api/deals/'+id+'/state',{method:'POST',body:JSON.stringify({state})})}catch(e){}
     d.state=state;saveLocal();render();openDeal(id);
   };
