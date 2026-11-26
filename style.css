@@ -407,4 +407,6 @@ button:disabled{opacity:.5;cursor:not-allowed;filter:grayscale(.2)}
   .watermark{animation:none!important;opacity:.06}
   .cardtop span,.orbit i,.steps .current:before,.shield,.deal-status .pulse{animation:none!important}
   .deal:hover,.deal:active,button:active{transform:none}
-}
+}.deal-timer{margin:0 0 12px;padding:10px 14px;border-radius:12px;font-size:12px;font-weight:700;text-align:center;
+  background:color-mix(in srgb,var(--blue) 12%,transparent);color:var(--blue)}
+.deal-timer.low{background:color-mix(in srgb,#e8503a 16%,transparent);color:#e8503a;animation:none}
