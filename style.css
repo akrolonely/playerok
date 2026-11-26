@@ -402,3 +402,9 @@ body.idle *,body.idle *::before,body.idle *::after{animation-play-state:paused!i
   .backdrop{backdrop-filter:blur(6px)!important;-webkit-backdrop-filter:blur(6px)!important}
 }
 button:disabled{opacity:.5;cursor:not-allowed;filter:grayscale(.2)}
+@media (max-width:560px){
+  .orb{display:none!important}
+  .watermark{animation:none!important;opacity:.06}
+  .cardtop span,.orbit i,.steps .current:before,.shield,.deal-status .pulse{animation:none!important}
+  .deal:hover,.deal:active,button:active{transform:none}
+}
