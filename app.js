@@ -139,6 +139,21 @@ function paintIdentity(){
 }
 
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+const GIFT_RE=/^https:\/\/t\.me\/nft\/[A-Za-z0-9_-]{3,80}\/?$/;
+function openTg(url){try{if(TG?.openTelegramLink){TG.openTelegramLink(url);return}}catch(e){}window.open(url,'_blank','noopener')}
+function gLink(cls){return `<a class="glink${cls?' '+cls:''}" href="https://t.me/${GUARANTOR}">@${GUARANTOR}</a>`}
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a.glink');if(!a)return;e.preventDefault();openTg(a.getAttribute('href'))});
+function shareText(d){
+  const from=d.owner_username?'@'+d.owner_username:(user.username?'@'+user.username:'покупатель');
+  const to=d.counterparty?'@'+d.counterparty:'продавец (по ссылке)';
+  return `🔒 Безопасная сделка #${d.id}\n\n`
+    +`От: ${from}\n`
+    +`Кому: ${to}\n`
+    +`🎁 Подарок: ${d.gift||d.description}\n`
+    +`💰 Сумма: ${fmt(d.amount)} ${d.currency}\n`
+    +`🛡 Гарант: @${GUARANTOR}\n\n`
+    +`Открой, чтобы подключиться к сделке:`;
+}
 
 /* ---------- deals ---------- */
 function render(){
@@ -159,20 +174,36 @@ function needAuth(){if(apiLive&&!authed){toast('Откройте приложе�
 function chooseDeal(){if(needAuth())return;modal(`<small style="color:var(--blue);letter-spacing:1.5px">NEW TRANSACTION</small><h2>Создать сделку</h2><p>Выбери тип сделки</p><div class="choices"><button class="choice" id="buy"><small>01 / BUY</small><b>Купить подарок</b><small>Ты покупатель, продавцу отправится ссылка</small></button><button class="choice" id="sell"><small>02 / SELL</small><b>Продать подарок</b><small>Ты продавец, покупателю отправится ссылка</small></button></div>`);$('#buy').onclick=()=>dealForm('buy');$('#sell').onclick=()=>dealForm('sell')}
 
 function dealForm(type){
-  modal(`<small style="color:var(--blue);letter-spacing:1.5px">DEAL DETAILS</small><h2>${type==='buy'?'Покупка подарка':'Продажа подарка'}</h2><p>Заполни информацию о сделке</p><form id="dealForm" class="form"><div class="field"><label>Валюта</label><select name="currency">${coins.map(c=>`<option value="${c.code}">${c.name} (${c.code})</option>`).join('')}</select></div><div class="field"><label>Сумма</label><input name="amount" type="number" min="0.01" step="any" placeholder="Например, 1000" required></div><div class="field"><label>Описание подарка / ссылка на NFT</label><textarea name="description" placeholder="Название или ссылка на NFT" required minlength="5"></textarea></div><div class="field"><label>${type==='buy'?'Telegram продавца':'Telegram покупателя'} (необязательно)</label><input name="counterparty" placeholder="@username"></div><button class="primary">Продолжить</button></form>`);
+  const iAmSell=type==='sell';
+  modal(`<small style="color:var(--blue);letter-spacing:1.5px">SECURE DEAL</small><h2>${iAmSell?'Продажа подарка':'Покупка подарка'}</h2>
+  <form id="dealForm" class="form">
+    <div class="field"><label>Ссылка на подарок</label><input name="gift" type="url" inputmode="url" placeholder="https://t.me/nft/…" required><small class="hint">Принимается только ссылка вида https://t.me/nft/…</small></div>
+    <div class="field"><label>Сумма и валюта</label><div class="amount-row"><input name="amount" type="number" min="0.01" step="any" placeholder="1000" required><select name="currency">${coins.map(c=>`<option value="${c.code}">${c.code}</option>`).join('')}</select></div></div>
+    <div class="field"><label>Кому передать · Telegram ${iAmSell?'покупателя':'продавца'} (необязательно)</label><input name="counterparty" placeholder="@username"></div>
+    <div class="escrow-row"><div><small>Менеджер-эскроу</small><b>${gLink()}</b></div><button type="button" class="mini" id="writeG">Написать</button></div>
+    <ol class="flow">
+      <li>${iAmSell?'Покупатель оплачивает':'Ты оплачиваешь'} сделку в мини-приложении.</li>
+      <li>${iAmSell?'Ты передаёшь':'Продавец передаёт'} подарок менеджеру-эскроу ${gLink()} и сообщает ему номер сделки.</li>
+      <li>Менеджер проверяет и передаёт подарок ${iAmSell?'покупателю':'тебе'}.</li>
+      <li>${iAmSell?'Ты получаешь оплату':'Продавец получает оплату'}.</li>
+    </ol>
+    <button class="primary">Продолжить</button>
+  </form>`);
+  $('#writeG').onclick=()=>openTg('https://t.me/'+GUARANTOR);
   $('#dealForm').onsubmit=e=>{
     e.preventDefault();
-    const f=new FormData(e.target),amount=Number(f.get('amount'));
+    const f=new FormData(e.target);
+    const gift=String(f.get('gift')||'').trim();
+    if(!GIFT_RE.test(gift))return toast('Нужна ссылка на подарок вида https://t.me/nft/…');
+    const amount=Number(f.get('amount'));
     if(!(amount>0))return toast('Укажи корректную сумму');
-    const desc=String(f.get('description')).trim();
-    if(desc.length<5)return toast('Описание должно быть не короче 5 символов');
-    const d={type,currency:f.get('currency'),amount,description:desc,counterparty:String(f.get('counterparty')).replace(/^@/,'').trim(),state:'created',id:Math.random().toString(36).slice(2,8).toUpperCase(),buyer:type==='buy'?'@'+user.username:'Ожидается',seller:type==='sell'?'@'+user.username:'Ожидается',guarantor:'@'+GUARANTOR,created:Date.now()};
+    const d={type,currency:f.get('currency'),amount,description:gift,gift,counterparty:String(f.get('counterparty')||'').replace(/^@/,'').trim(),state:'created',id:Math.random().toString(36).slice(2,8).toUpperCase(),buyer:type==='buy'?'@'+user.username:'Ожидается',seller:type==='sell'?'@'+user.username:'Ожидается',guarantor:'@'+GUARANTOR,owner_username:user.username||'',created:Date.now()};
     safety(d);
   };
 }
 
 function safety(d){
-  modal(`<small style="color:var(--blue);letter-spacing:1.5px">SAFETY FIRST</small><h2>Правила безопасности</h2><div class="safety-card"><div class="safety-head"><span class="shield">🛡</span><div><b>Внимательно ознакомься перед созданием сделки</b><p>Эти правила защищают тебя и твои средства</p></div></div><ul class="safety-list"><li>Не переводи деньги напрямую в обход согласованного порядка</li><li>Проверяй название подарка, NFT-ссылку и сумму</li><li>Никому не передавай пароль, коды входа и доступ к Telegram</li><li>Не подтверждай получение средств до фактической проверки</li><li>При подозрении на обман останови сделку и обратись к гаранту</li><li>Гарант сделок: <b>@${GUARANTOR}</b></li></ul></div><div class="timer-wrap"><div class="timer-row"><span id="timer">Прочитай правила</span><b>5 сек.</b></div><div class="progress"><i id="bar"></i></div></div><button class="primary" id="ack" disabled>Я ознакомился</button>`);
+  modal(`<small style="color:var(--blue);letter-spacing:1.5px">SAFETY FIRST</small><h2>Правила безопасности</h2><div class="safety-card warn" id="safetyCard"><div class="safety-head"><span class="shield">🛡</span><div><b>Внимательно ознакомься перед созданием сделки</b><p>Эти правила защищают тебя и твои средства</p></div></div><ul class="safety-list"><li>Не переводи деньги напрямую в обход согласованного порядка</li><li>Проверяй название подарка, NFT-ссылку и сумму</li><li>Никому не передавай пароль, коды входа и доступ к Telegram</li><li>Не подтверждай получение средств до фактической проверки</li><li>При подозрении на обман останови сделку и обратись к гаранту</li><li>Гарант сделок: ${gLink()}</li></ul></div><div class="timer-wrap"><div class="timer-row"><span id="timer">Прочитай правила</span><b>5 сек.</b></div><div class="progress"><i id="bar"></i></div></div><button class="primary" id="ack" disabled>Продолжить</button>`);
   const bar=$('#bar'),ack=$('#ack'),timerEl=$('#timer'),total=5,start=Date.now();
   let fi;
   requestAnimationFrame(function tick(){
@@ -181,7 +212,7 @@ function safety(d){
     const left=Math.ceil(total-(Date.now()-start)/1000);
     timerEl.textContent=left>0?'Прочитай правила':'Можно продолжить';
     const b=$('.timer-row b'); if(b)b.textContent=(left>0?left:0)+' сек.';
-    if(p<1){fi=requestAnimationFrame(tick)}else{ack.disabled=false;ack.classList.add('ready')}
+    if(p<1){fi=requestAnimationFrame(tick)}else{ack.disabled=false;ack.classList.add('ready');const sc=$('#safetyCard');if(sc){sc.classList.remove('warn');sc.classList.add('ok')}}
   });
   ack.onclick=async()=>{
     if(ack.disabled)return;
@@ -232,24 +263,26 @@ function openDeal(id){
   if(!['done','cancelled'].includes(d.state))actions+='<button class="secondary" id="cancel">Отменить</button>';
   const link=shareLink(d);
   const bal=cur.balance,canPay=bal>=amount+fee;
-  const shareBlock=`<button class="share-btn" id="copyLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg><span>Поделиться ссылкой</span></button><div class="link-preview">${link}</div>`;
+  const shareBlock=`<button class="share-btn" id="copyLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg><span>${iAmBuyer?'Открыть ссылку для продавца':'Открыть ссылку для покупателя'}</span></button><div class="link-preview">${link}</div>`;
   modal(`<small style="color:var(--blue);letter-spacing:1.5px">DEAL #${d.id}</small><h2>${d.type==='buy'?'Покупка':'Продажа'} подарка</h2>
   <div class="deal-hero"><span class="deal-coin">${coinIcon(d.currency)}</span><div><small>К оплате · ${d.currency}</small><b>${fmt(amount+fee)} ${d.currency}</b></div></div>
   <div class="partner-card"><div class="partner left"><span class="p-avatar">${(user.name||'П').charAt(0).toUpperCase()}</span><div><small>${iAmBuyer?'Ты (покупатель)':'Ты (продавец)'}</small><b>@${esc(user.username||'guest')}</b></div></div><div class="shield"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg></div><div class="partner right"><span class="p-avatar">${(otherU||'?').charAt(0).toUpperCase()}</span><div><small>${iAmBuyer?'Продавец':'Покупатель'}</small><b>@${esc(otherU||'ожидается')}</b></div></div></div>
   <div class="deal-status ${d.state}"><span class="pulse"></span><div><small>Текущий статус</small><b>${labels[d.state]||d.state}</b><span>${statusHint(d.state)}</span></div></div>
   <div class="deal-timer" id="dealTimer"></div>
   ${shareBlock}
-  <div class="accordion"><div class="acc-head"><b>Описание подарка</b><span>${esc(d.description)}</span></div><div class="acc-body"><div class="kv"><span>Менеджер-эскроу</span><b>@${GUARANTOR}</b></div></div></div>
+  <button class="secondary contact-g" id="contactG">🛡 Связаться с гарантом</button>
+  <div class="accordion"><div class="acc-head"><b>Описание подарка</b><span>${esc(d.description)}</span></div><div class="acc-body"><div class="kv"><span>Менеджер-эскроу</span><b>${gLink()}</b></div></div></div>
   <div class="deal-actions">${actions}</div>
   <div class="fee-card"><div class="fee-head">Расчёт комиссии</div><div class="kv"><span>Сумма сделки</span><b>${fmt(amount)} ${d.currency}</b></div><div class="kv"><span>Комиссия сервиса · 1%</span><b>${fmt(fee)} ${d.currency}</b></div><div class="kv total"><span>Итого ${iAmBuyer?'к оплате':'к получению'}</span><b>${fmt(amount+fee)} ${d.currency}</b></div><div class="bal-row"><span>Баланс на счёте</span><b class="${canPay?'ok':'low'}">${fmt(bal)} ${d.currency}${canPay?'':' · недостаточно'}</b></div></div>
   <div class="stepbar">${['Создана','Участник','Оплата','Менеджер','Готова'].map((s,i)=>`<span class="${i<n?'done':i===n?'current':''}">${s}</span>`).join('')}</div>
   ${admin&&d.receipt?`<div class="detail"><b>Чек (виден гаранту)</b><br><img src="${d.receipt}" alt="Чек" style="max-width:100%;max-height:220px;object-fit:contain;margin-top:8px;border-radius:8px"></div>`:''}
   <p class="hint">Подтверждения меняют статус сделки и синхронизируются с сервером.</p>`);
   $('#copyLink')?.addEventListener('click',()=>{
-    const share=`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Сделка #'+d.id+' на Playerok')}`;
+    const share=`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText(d))}`;
     if(TG?.openTelegramLink){TG.openTelegramLink(share);return}
     navigator.clipboard?.writeText(link).then(()=>toast('Ссылка скопирована')).catch(()=>toast('Скопируй ссылку вручную'));
   });
+  $('#contactG')?.addEventListener('click',()=>openTg('https://t.me/'+GUARANTOR));
   $('#receiptFile')?.addEventListener('change',e=>{
     const file=e.target.files?.[0];if(!file)return;
     if(!file.type.startsWith('image/'))return toast('Выбери изображение');
