@@ -80,9 +80,9 @@ async function importStart(){
   }
   if(deals.some(x=>x.id===j.i)){render();openDeal(j.i);return}
   const creator=String(j.u||'').toLowerCase(),me=String(user.username||'').toLowerCase();
-  const iAmBuyer=j.t==='buy'?creator===me:creator!==me;
-  const buyer=iAmBuyer?(user.username||'покупатель'):creator;
-  const seller=iAmBuyer?creator:(user.username||'продавец');
+  const iAmBuyer=j.t==='sell';
+  const buyer=iAmBuyer?(user.username||''):creator;
+  const seller=iAmBuyer?creator:(user.username||'');
   const d={id:j.i,type:j.t==='sell'?'sell':'buy',currency:j.c||'GRAM',amount:Number(j.a)||0,description:j.d||'Сделка по ссылке',counterparty:j.k||'',state:'participant',owner_username:creator,buyer,seller,buyer_id:iAmBuyer?String(user.id||''):String(j.o||''),seller_id:iAmBuyer?String(j.o||''):String(user.id||''),guarantor:'@'+GUARANTOR};
   deals.unshift(d);saveLocal();render();openDeal(d.id);
 }
@@ -184,7 +184,7 @@ function openDeal(id){
   const n=d.state==='done'?4:d.state==='manager'?3:['paid','claimed'].includes(d.state)?2:d.state==='participant'?1:0;
   const cur=coins.find(c=>c.code===d.currency)||coins[0];
   const feeRate=.01,amount=Number(d.amount)||0,fee=amount*feeRate;
-  const myId=String(user.id||''),meU=String(user.username||'').toLowerCase();
+  const myId=String(user.id||TG?.initDataUnsafe?.user?.id||''),meU=String(user.username||'').toLowerCase();
   const bId=String(d.buyer_id||''),sId=String(d.seller_id||'');
   const buyerU=String(d.buyer||'').toLowerCase(),sellerU=String(d.seller||'').toLowerCase();
   let iAmBuyer;
@@ -192,6 +192,7 @@ function openDeal(id){
   else if(myId&&sId&&sId===myId)iAmBuyer=false;
   else if(meU&&buyerU&&buyerU===meU)iAmBuyer=true;
   else if(meU&&sellerU&&sellerU===meU)iAmBuyer=false;
+  else if(bId||sId)iAmBuyer=false;
   else iAmBuyer=d.type==='buy';
   const otherU=iAmBuyer?(d.seller||d.counterparty):(d.buyer||d.counterparty);
   let actions='';
