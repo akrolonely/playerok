@@ -405,7 +405,7 @@ button:disabled{opacity:.5;cursor:not-allowed;filter:grayscale(.2)}
 @media (max-width:560px){
   .orb{display:none!important}
   .watermark{animation:none!important;opacity:.06}
-  .cardtop span,.orbit i,.steps .current:before,.shield,.deal-status .pulse{animation:none!important}
+  .cardtop span,.orbit i,.steps .current:before,.deal-status .pulse{animation:none!important}
   .deal:hover,.deal:active,button:active{transform:none}
 }.deal-timer{margin:0 0 12px;padding:10px 14px;border-radius:12px;font-size:12px;font-weight:700;text-align:center;
   background:color-mix(in srgb,var(--blue) 12%,transparent);color:var(--blue)}
@@ -440,10 +440,20 @@ button.primary:disabled{opacity:.45;filter:saturate(.55)}
 @keyframes warnBreath{0%,100%{opacity:.26}50%{opacity:.9}}
 @keyframes okFlash{0%{opacity:.95}100%{opacity:0}}
 .ack{position:relative;overflow:hidden;width:100%;display:block}
-.ack-fill{position:absolute;left:0;top:0;bottom:0;width:100%;transform:scaleX(0);transform-origin:left;
-  background:linear-gradient(90deg,rgba(255,255,255,.22),rgba(255,255,255,.10));pointer-events:none;transition:transform .35s linear}
 .ack-label{position:relative;z-index:1}
-.ack.ready .ack-fill{opacity:0;transition:opacity .25s ease}
-button.primary.ready{background:linear-gradient(135deg,#22b07a,#0e8f66);animation:okBtn .8s cubic-bezier(.2,.8,.3,1) 1}
-@keyframes okBtn{0%{box-shadow:0 0 0 0 rgba(34,176,122,.55)}55%{box-shadow:0 0 0 14px rgba(34,176,122,0)}100%{box-shadow:0 0 0 0 rgba(34,176,122,0)}}
+button.primary.ready{background:linear-gradient(135deg,#22b07a,#0e8f66);animation:none}
+button.primary.ready::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 45%),
+    radial-gradient(130% 110% at 50% 0%,rgba(34,176,122,.55),rgba(34,176,122,.18) 60%,transparent 82%);
+  box-shadow:inset 0 0 0 1.5px rgba(34,176,122,.6);
+  opacity:.18;animation:okBreath 2.4s ease-in-out infinite}
+@keyframes okBreath{0%,100%{opacity:.14}50%{opacity:.62}}
+.safety-card .shield{animation:shieldRed 2.4s ease-in-out infinite}
+.safety-card.ok .shield{animation:shieldPulse 2.6s ease-in-out infinite}
+@keyframes shieldRed{
+  0%,100%{background:linear-gradient(135deg,#e8a33a,#c77812);box-shadow:0 0 0 3px var(--surface),0 5px 12px rgba(200,120,18,.4)}
+  50%{background:linear-gradient(135deg,#e8503a,#b8341f);box-shadow:0 0 0 8px rgba(232,80,58,.16),0 5px 18px rgba(232,80,58,.55)}
+}
+
 .deal{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
