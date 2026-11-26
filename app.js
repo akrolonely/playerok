@@ -20,8 +20,7 @@ const coins=[
   ['RUB','Российский рубль','₽','linear-gradient(130deg,#3977dc,#1d3e92)','#9cc0ff'],
   ['USD','US Dollar','$','linear-gradient(130deg,#398c70,#15513e)','#6fdcb0'],
   ['BTC','Bitcoin','₿','linear-gradient(130deg,#f59c35,#a94b0c)','#ffbe6e'],
-  ['ETH','Ethereum','◆','linear-gradient(130deg,#6979bb,#303d79)','#aab8f2'],
-  ['TON','Toncoin','◈','linear-gradient(130deg,#2e8fd6,#0a4a86)','#8fd0ff']
+  ['ETH','Ethereum','◆','linear-gradient(130deg,#6979bb,#303d79)','#aab8f2']
 ].map(x=>({code:x[0],name:x[1],icon:x[2],color:x[3],tint:x[4],balance:0}));
 
 function coinGlyph(code){const c=coins.find(x=>x.code===code)||coins[0];return `<span class="cur-glyph" style="color:${c.tint}">${c.icon}</span>`}
@@ -60,6 +59,26 @@ async function boot(){
     if(!apiLive){n.textContent='Локальный режим: сделки сохраняются только в этом браузере.';n.classList.remove('hidden')}
     else if(!authed)n.classList.remove('hidden');
   }
+  applyBals();creditSeller();render();
+}
+function balances(){try{return JSON.parse(localStorage.getItem('pkbal')||'{}')}catch(e){return {}}}
+function applyBals(){const b=balances();coins.forEach(c=>{c.balance=Number(b[c.code]||0)})}
+function creditSeller(){
+  const uid=String(user.id||''),un=String(user.username||'').toLowerCase();
+  if(!uid&&!un)return false;
+  let paid={};try{paid=JSON.parse(localStorage.getItem('pkpaid')||'{}')}catch(e){paid={}}
+  let changed=false;
+  deals.forEach(d=>{
+    if(d.state!=='done'||paid[d.id])return;
+    const isSeller=(d.seller_id&&uid&&String(d.seller_id)===uid)||(d.seller&&un&&String(d.seller).toLowerCase()===un);
+    if(!isSeller)return;
+    paid[d.id]=1;changed=true;
+    const b=balances();b[d.currency]=Number(b[d.currency]||0)+Number(d.amount||0);
+    try{localStorage.setItem('pkbal',JSON.stringify(b))}catch(e){}
+  });
+  if(!changed)return false;
+  try{localStorage.setItem('pkpaid',JSON.stringify(paid))}catch(e){}
+  applyBals();return true;
 }
 async function importStart(){
   if(window.__dealImported)return;
@@ -369,12 +388,12 @@ async function syncDeals(){
     const r=await api('/api/deals');
     const list=r.deals||[];
     if(JSON.stringify(list)===JSON.stringify(deals))return;
-    deals=list;saveLocal();render();
+    deals=list;saveLocal();creditSeller();render();
     const open=window.__openDeal;
     if(open&&deals.some(x=>x.id===open))openDeal(open);
   }catch(e){}
 }
-setInterval(syncDeals,5000);
+setInterval(syncDeals,3000);
 document.addEventListener('visibilitychange',()=>{document.body.classList.toggle('idle',document.hidden);if(!document.hidden)syncDeals()});
 const refreshBtn=document.getElementById('refreshDeals');if(refreshBtn)refreshBtn.onclick=()=>{syncDeals().then(()=>toast('Обновлено'))};
 (async()=>{
