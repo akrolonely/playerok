@@ -145,14 +145,25 @@ function gLink(cls){return `<a class="glink${cls?' '+cls:''}" href="https://t.me
 document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a.glink');if(!a)return;e.preventDefault();openTg(a.getAttribute('href'))});
 function shareText(d){
   const from=d.owner_username?'@'+d.owner_username:(user.username?'@'+user.username:'покупатель');
-  const to=d.counterparty?'@'+d.counterparty:'продавец (по ссылке)';
-  return `🔒 Безопасная сделка #${d.id}\n\n`
-    +`От: ${from}\n`
-    +`Кому: ${to}\n`
-    +`🎁 Подарок: ${d.gift||d.description}\n`
-    +`💰 Сумма: ${fmt(d.amount)} ${d.currency}\n`
-    +`🛡 Гарант: @${GUARANTOR}\n\n`
-    +`Открой, чтобы подключиться к сделке:`;
+  const to=d.counterparty?'@'+d.counterparty:'продавец';
+  return [
+    `🔒 Безопасная сделка #${d.id}`,
+    '',
+    `👤 От: ${from}`,
+    `👥 Кому: ${to}`,
+    '',
+    `🎁 Подарок: ${d.gift||d.description}`,
+    `💰 Сумма: ${fmt(d.amount)} ${d.currency}`,
+    `🛡 Менеджер-эскроу: @${GUARANTOR}`,
+    '',
+    'Как проходит сделка:',
+    '1️⃣ Покупатель оплачивает сделку в мини-приложении.',
+    `2️⃣ Продавец передаёт подарок менеджеру @${GUARANTOR} и сообщает номер сделки.`,
+    '3️⃣ Менеджер проверяет и передаёт подарок покупателю.',
+    '4️⃣ Продавец получает оплату.',
+    '',
+    `👉 ${shareLink(d)}`
+  ].join('\n');
 }
 
 /* ---------- deals ---------- */
@@ -203,13 +214,12 @@ function dealForm(type){
 }
 
 function safety(d){
-  modal(`<small style="color:var(--blue);letter-spacing:1.5px">SAFETY FIRST</small><h2>Правила безопасности</h2><div class="safety-card warn" id="safetyCard"><div class="safety-head"><span class="shield">🛡</span><div><b>Внимательно ознакомься перед созданием сделки</b><p>Эти правила защищают тебя и твои средства</p></div></div><ul class="safety-list"><li>Не переводи деньги напрямую в обход согласованного порядка</li><li>Проверяй название подарка, NFT-ссылку и сумму</li><li>Никому не передавай пароль, коды входа и доступ к Telegram</li><li>Не подтверждай получение средств до фактической проверки</li><li>При подозрении на обман останови сделку и обратись к гаранту</li><li>Гарант сделок: ${gLink()}</li></ul></div><div class="timer-wrap"><div class="timer-row"><span id="timer">Прочитай правила</span><b>5 сек.</b></div><div class="progress"><i id="bar"></i></div></div><button class="primary ack" id="ack" disabled><i class="ack-fill" id="ackFill"></i><span class="ack-label">Продолжить</span></button>`);
+  modal(`<small style="color:var(--blue);letter-spacing:1.5px">SAFETY FIRST</small><h2>Правила безопасности</h2><div class="safety-card warn" id="safetyCard"><div class="safety-head"><span class="shield">🛡</span><div><b>Внимательно ознакомься перед созданием сделки</b><p>Эти правила защищают тебя и твои средства</p></div></div><ul class="safety-list"><li>Не переводи деньги напрямую в обход согласованного порядка</li><li>Проверяй название подарка, NFT-ссылку и сумму</li><li>Никому не передавай пароль, коды входа и доступ к Telegram</li><li>Не подтверждай получение средств до фактической проверки</li><li>При подозрении на обман останови сделку и обратись к гаранту</li><li>Гарант сделок: ${gLink()}</li></ul></div><div class="timer-wrap"><div class="timer-row"><span id="timer">Прочитай правила</span><b>5 сек.</b></div><div class="progress"><i id="bar"></i></div></div><button class="primary ack" id="ack" disabled><span class="ack-label">Продолжить</span></button>`);
   const bar=$('#bar'),ack=$('#ack'),timerEl=$('#timer'),total=5,start=Date.now();
   let fi;
   requestAnimationFrame(function tick(){
     const p=Math.min((Date.now()-start)/1000/total,1);
     bar.style.width=p*100+'%';
-    const af=$('#ackFill');if(af)af.style.transform='scaleX('+p+')';
     const left=Math.ceil(total-(Date.now()-start)/1000);
     timerEl.textContent=left>0?'Прочитай правила':'Можно продолжить';
     const b=$('.timer-row b'); if(b)b.textContent=(left>0?left:0)+' сек.';
@@ -279,7 +289,7 @@ function openDeal(id){
   ${admin&&d.receipt?`<div class="detail"><b>Чек (виден гаранту)</b><br><img src="${d.receipt}" alt="Чек" style="max-width:100%;max-height:220px;object-fit:contain;margin-top:8px;border-radius:8px"></div>`:''}
   <p class="hint">Подтверждения меняют статус сделки и синхронизируются с сервером.</p>`);
   $('#copyLink')?.addEventListener('click',()=>{
-    const share=`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText(d))}`;
+    const share=`https://t.me/share/url?url=&text=${encodeURIComponent(shareText(d))}`;
     if(TG?.openTelegramLink){TG.openTelegramLink(share);return}
     navigator.clipboard?.writeText(link).then(()=>toast('Ссылка скопирована')).catch(()=>toast('Скопируй ссылку вручную'));
   });
