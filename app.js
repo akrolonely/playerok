@@ -82,7 +82,7 @@ function creditSeller(){
 }
 async function importStart(){
   if(window.__dealImported)return;
-  const sp=TG?.initDataUnsafe?.start_param;
+  const sp=TG?.initDataUnsafe?.start_param||new URLSearchParams(location.search).get('d')||'';
   if(!sp)return;
   const j=decParam(sp);
   if(!j)return;
