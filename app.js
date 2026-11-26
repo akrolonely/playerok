@@ -203,12 +203,13 @@ function dealForm(type){
 }
 
 function safety(d){
-  modal(`<small style="color:var(--blue);letter-spacing:1.5px">SAFETY FIRST</small><h2>Правила безопасности</h2><div class="safety-card warn" id="safetyCard"><div class="safety-head"><span class="shield">🛡</span><div><b>Внимательно ознакомься перед созданием сделки</b><p>Эти правила защищают тебя и твои средства</p></div></div><ul class="safety-list"><li>Не переводи деньги напрямую в обход согласованного порядка</li><li>Проверяй название подарка, NFT-ссылку и сумму</li><li>Никому не передавай пароль, коды входа и доступ к Telegram</li><li>Не подтверждай получение средств до фактической проверки</li><li>При подозрении на обман останови сделку и обратись к гаранту</li><li>Гарант сделок: ${gLink()}</li></ul></div><div class="timer-wrap"><div class="timer-row"><span id="timer">Прочитай правила</span><b>5 сек.</b></div><div class="progress"><i id="bar"></i></div></div><button class="primary" id="ack" disabled>Продолжить</button>`);
+  modal(`<small style="color:var(--blue);letter-spacing:1.5px">SAFETY FIRST</small><h2>Правила безопасности</h2><div class="safety-card warn" id="safetyCard"><div class="safety-head"><span class="shield">🛡</span><div><b>Внимательно ознакомься перед созданием сделки</b><p>Эти правила защищают тебя и твои средства</p></div></div><ul class="safety-list"><li>Не переводи деньги напрямую в обход согласованного порядка</li><li>Проверяй название подарка, NFT-ссылку и сумму</li><li>Никому не передавай пароль, коды входа и доступ к Telegram</li><li>Не подтверждай получение средств до фактической проверки</li><li>При подозрении на обман останови сделку и обратись к гаранту</li><li>Гарант сделок: ${gLink()}</li></ul></div><div class="timer-wrap"><div class="timer-row"><span id="timer">Прочитай правила</span><b>5 сек.</b></div><div class="progress"><i id="bar"></i></div></div><button class="primary ack" id="ack" disabled><i class="ack-fill" id="ackFill"></i><span class="ack-label">Продолжить</span></button>`);
   const bar=$('#bar'),ack=$('#ack'),timerEl=$('#timer'),total=5,start=Date.now();
   let fi;
   requestAnimationFrame(function tick(){
     const p=Math.min((Date.now()-start)/1000/total,1);
     bar.style.width=p*100+'%';
+    const af=$('#ackFill');if(af)af.style.transform='scaleX('+p+')';
     const left=Math.ceil(total-(Date.now()-start)/1000);
     timerEl.textContent=left>0?'Прочитай правила':'Можно продолжить';
     const b=$('.timer-row b'); if(b)b.textContent=(left>0?left:0)+' сек.';
